@@ -25,6 +25,10 @@ cd ~/projects/neetcode-srs
 python3 -m venv .venv
 .venv/bin/pip install -e .
 
+# if you dont want to symlink
+source ~/projects/neetcode-srs/.venv/bin/activate
+neetcode
+
 # Symlink the CLI onto your PATH (adjust target dir if needed):
 mkdir -p ~/.local/bin
 ln -sf "$PWD/.venv/bin/neetcode" ~/.local/bin/neetcode
