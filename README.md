@@ -32,6 +32,9 @@ neetcode
 # Symlink the CLI onto your PATH (adjust target dir if needed):
 mkdir -p ~/.local/bin
 ln -sf "$PWD/.venv/bin/neetcode" ~/.local/bin/neetcode
+```bash
+neetcode setup      # fetches the 250 list from neetcode.io, populates SQLite
+neetcode stats      # should show: 250 total · 250 new
 ```
 
 Make sure `~/.local/bin` is on your `PATH`. Add this to `~/.zshrc` if it isn't:
