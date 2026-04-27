@@ -32,15 +32,19 @@ neetcode
 # Symlink the CLI onto your PATH (adjust target dir if needed):
 mkdir -p ~/.local/bin
 ln -sf "$PWD/.venv/bin/neetcode" ~/.local/bin/neetcode
-```bash
-neetcode setup      # fetches the 250 list from neetcode.io, populates SQLite
-neetcode stats      # should show: 250 total · 250 new
 ```
 
 Make sure `~/.local/bin` is on your `PATH`. Add this to `~/.zshrc` if it isn't:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
+```
+
+Open a new shell, then initialize the deck:
+
+```bash
+neetcode setup      # fetches the 250 list from neetcode.io, populates SQLite
+neetcode stats      # should show: 250 total · 250 new
 ```
 
 ## Install Windows
@@ -59,6 +63,7 @@ neetcode
 # Add the Scripts folder to your PATH permanently instead of symlinking:
 $scriptsPath = "$PWD\.venv\Scripts"
 [Environment]::SetEnvironmentVariable("PATH", "$scriptsPath;" + [Environment]::GetEnvironmentVariable("PATH", "User"), "User")
+```
 
 Open a new shell, then initialize the deck:
 
@@ -70,11 +75,13 @@ neetcode stats      # should show: 250 total · 250 new
 ## Daily use
 
 ```bash
-neetcode            # show today's card, prompts y / n / e / skip
-neetcode stats      # deck progress
-neetcode history 20 # last 20 reviews
-neetcode skip       # postpone today's card one day
-neetcode dashboard  # open an HTML progress report (heatmap, streak, etc.)
+neetcode                   # show today's card, prompts y / n / e / skip
+neetcode --shuffle         # enable shuffle mode (saved); random problems, Easy/Medium weighted over Hard
+neetcode --no-shuffle      # revert to in-order mode (saved)
+neetcode stats             # deck progress
+neetcode history 20        # last 20 reviews
+neetcode skip              # postpone today's card one day
+neetcode dashboard         # open an HTML progress report (heatmap, streak, etc.)
 neetcode setup --refresh   # re-fetch the problem list if NeetCode updates it
 ```
 
@@ -86,12 +93,19 @@ One card per calendar day by default. Run `neetcode` again after answering
 and it tells you you're done. Want more per day?
 
 ```bash
-neetcode config daily 3   # now you can do 3 cards/day
-neetcode config           # show current config
+neetcode config daily 3      # now you can do 3 cards/day
+neetcode config shuffle on   # same as --shuffle, persisted
+neetcode config shuffle off  # same as --no-shuffle, persisted
+neetcode config              # show current config
 ```
 
 Each invocation still shows one card — `daily` just controls how many times
 you can run it before it blocks you until tomorrow.
+
+Shuffle mode picks new cards randomly instead of in order. Difficulty is
+weighted — **Easy 35% · Medium 50% · Hard 15%** — so hard problems surface
+regularly but don't dominate. Answering `n` on any card also prints the
+topic(s) it belongs to so you know exactly what to review.
 
 ## Scheduling rules
 
@@ -107,8 +121,9 @@ Three grades, SM-2 under the hood:
   - Streak resets, card pushed out **at least 3 days** — not tomorrow. The brain needs time to forget and re-encounter cleanly.
   - Ease drops by 0.2 (floor 1.3).
 
-New cards are introduced in order **Easy (60) → Medium (155) → Hard (35)** within the
-NeetCode list ordering. Due reviews always beat new cards when both are available.
+By default, new cards are introduced in order **Easy (60) → Medium (155) → Hard (35)**
+within the NeetCode list ordering. With `--shuffle`, the order is randomized using
+difficulty weights instead. Due reviews always beat new cards when both are available.
 
 ## Data
 
