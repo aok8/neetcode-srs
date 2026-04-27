@@ -40,6 +40,23 @@ Make sure `~/.local/bin` is on your `PATH`. Add this to `~/.zshrc` if it isn't:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+## Install Windows
+
+```bash
+git clone https://github.com/siddhant1/neetcode-srs.git "$HOME/projects/neetcode-srs"
+cd "$HOME/projects/neetcode-srs"
+
+python -m venv .venv
+.venv\Scripts\pip install -e .
+
+# If you don't want to add to PATH, just activate the venv:
+.venv\Scripts\Activate.ps1
+neetcode
+
+# Add the Scripts folder to your PATH permanently instead of symlinking:
+$scriptsPath = "$PWD\.venv\Scripts"
+[Environment]::SetEnvironmentVariable("PATH", "$scriptsPath;" + [Environment]::GetEnvironmentVariable("PATH", "User"), "User")
+
 Open a new shell, then initialize the deck:
 
 ```bash
