@@ -139,7 +139,7 @@ def _build_heatmap(today: date, days: dict) -> dict:
                 continue
             count = days.get(d.isoformat(), {}).get("graded", 0)
             level = _level_for_count(count)
-            label = f'{d.strftime("%a %b %-d, %Y")} — {count} review{"s" if count != 1 else ""}'
+            label = f'{d.strftime("%a %b")} {d.day}, {d.year} — {count} review{"s" if count != 1 else ""}'
             cells_html.append(
                 f'<div class="cell" data-level="{level}" '
                 f'data-label="{_html.escape(label, quote=True)}" '
@@ -763,7 +763,7 @@ def render_html(data: dict) -> str:
     year = today.strftime("%Y")
     grid_start_year = hm["grid_start"].strftime("%Y")
     year_span = f'{grid_start_year} — {year}' if grid_start_year != year else year
-    generated_stamp = today.strftime("%b %-d, %Y").upper()
+    generated_stamp = f'{today.strftime("%b")} {today.day}, {today.year}'.upper()
 
     last_at = data.get("last_reviewed_at")
     last_note = ""
