@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -164,6 +165,32 @@ def pick_new(conn: sqlite3.Connection) -> Card | None:
             order_idx ASC
         LIMIT 1
         """
+    ).fetchone()
+    return _row_to_card(row) if row else None
+
+
+_SHUFFLE_BUCKET_WEIGHTS = {"Easy": 35, "Medium": 50, "Hard": 15}
+
+
+def pick_new_shuffle(conn: sqlite3.Connection) -> Card | None:
+    """Pick a random unseen card with difficulty-bucket weighting (Easy 35%, Medium 50%, Hard 15%)."""
+    counts = {}
+    for diff in ("Easy", "Medium", "Hard"):
+        row = conn.execute(
+            "SELECT COUNT(*) FROM cards WHERE next_due IS NULL AND difficulty = ?", (diff,)
+        ).fetchone()
+        counts[diff] = row[0]
+
+    available = [(d, _SHUFFLE_BUCKET_WEIGHTS[d]) for d in ("Easy", "Medium", "Hard") if counts[d] > 0]
+    if not available:
+        return None
+
+    diffs, weights = zip(*available)
+    chosen = random.choices(diffs, weights=weights, k=1)[0]
+
+    row = conn.execute(
+        "SELECT * FROM cards WHERE next_due IS NULL AND difficulty = ? ORDER BY RANDOM() LIMIT 1",
+        (chosen,),
     ).fetchone()
     return _row_to_card(row) if row else None
 

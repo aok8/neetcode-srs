@@ -101,7 +101,14 @@ def cmd_today(args: argparse.Namespace) -> int:
     cfg = config.load(CONFIG_PATH)
     target = cfg["daily_target"]
 
-    pick = selector.pick_today(conn, today, daily_target=target)
+    # Persist --shuffle / --no-shuffle if either flag was explicitly passed.
+    if getattr(args, "shuffle", False):
+        cfg = config.set_key(CONFIG_PATH, "shuffle", True)
+    elif getattr(args, "no_shuffle", False):
+        cfg = config.set_key(CONFIG_PATH, "shuffle", False)
+    shuffle = cfg["shuffle"]
+
+    pick = selector.pick_today(conn, today, daily_target=target, shuffle=shuffle)
     if pick.kind == "empty":
         print("Deck is empty. Run `neetcode setup` first.")
         return 1
@@ -112,6 +119,8 @@ def cmd_today(args: argparse.Namespace) -> int:
         return 0
     assert pick.card is not None
 
+    if shuffle:
+        print(f"  {DIM}shuffle mode{RESET}")
     if target > 1:
         print(f"  {DIM}card {pick.done_today + 1} of {target} today{RESET}")
     _print_card(pick.card, pick.kind)
@@ -142,7 +151,11 @@ def cmd_today(args: argparse.Namespace) -> int:
     print(f"  {_color(verb, color)} — next review in {days} day{'s' if days != 1 else ''} "
           f"({result.next_due.isoformat()}).")
     print(f"  {DIM}ease {pick.card.ease:.2f} → {result.state.ease:.2f}  ·  "
-          f"streak {result.state.reps}{RESET}\n")
+          f"streak {result.state.reps}{RESET}")
+    if answer == "n" and pick.card.topics:
+        topics_str = ", ".join(pick.card.topics)
+        print(f"  {_color('Study:', BOLD)} {YELLOW}{topics_str}{RESET}")
+    print()
     return 0
 
 
@@ -199,7 +212,7 @@ def cmd_config(args: argparse.Namespace) -> int:
     if args.value is None:
         print(cfg.get(key, "(unset)"))
         return 0
-    coerced: int | str = args.value
+    coerced: int | str | bool = args.value
     if key == "daily_target":
         try:
             coerced = int(args.value)
@@ -208,6 +221,14 @@ def cmd_config(args: argparse.Namespace) -> int:
             return 2
         if coerced < 1:
             print("  daily_target must be >= 1")
+            return 2
+    elif key == "shuffle":
+        if args.value.lower() in ("on", "true", "1", "yes"):
+            coerced = True
+        elif args.value.lower() in ("off", "false", "0", "no"):
+            coerced = False
+        else:
+            print(f"  shuffle must be on/off, got {args.value!r}")
             return 2
     try:
         updated = config.set_key(CONFIG_PATH, key, coerced)
@@ -222,7 +243,7 @@ def cmd_skip(args: argparse.Namespace) -> int:
     conn = db.connect(DB_PATH)
     today = _parse_today(args.today)
     cfg = config.load(CONFIG_PATH)
-    pick = selector.pick_today(conn, today, daily_target=cfg["daily_target"])
+    pick = selector.pick_today(conn, today, daily_target=cfg["daily_target"], shuffle=cfg["shuffle"])
     if pick.kind in ("empty", "quota_hit"):
         print("Nothing to skip.")
         return 0
@@ -235,6 +256,23 @@ def cmd_skip(args: argparse.Namespace) -> int:
 
 # --- entrypoint -----------------------------------------------------------
 
+def _add_shuffle_flags(parser: argparse.ArgumentParser) -> None:
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument(
+        "--shuffle",
+        action="store_true",
+        default=False,
+        help="Enable shuffle mode (saved to config). Picks random problems, weighted Easy/Medium > Hard.",
+    )
+    grp.add_argument(
+        "--no-shuffle",
+        action="store_true",
+        default=False,
+        dest="no_shuffle",
+        help="Disable shuffle mode and revert to in-order selection (saved to config).",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     # Parent parser with the hidden --today flag, inherited by all subparsers
     # so it works in both `neetcode --today ...` and `neetcode today --today ...`.
@@ -246,6 +284,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Daily NeetCode 250 SRS.",
         parents=[common],
     )
+    _add_shuffle_flags(p)
     sub = p.add_subparsers(dest="command")
 
     p_setup = sub.add_parser("setup", parents=[common],
@@ -257,6 +296,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_stats.set_defaults(func=cmd_stats)
 
     p_today = sub.add_parser("today", parents=[common], help="Show today's card (default).")
+    _add_shuffle_flags(p_today)
     p_today.set_defaults(func=cmd_today)
 
     p_hist = sub.add_parser("history", parents=[common], help="Show recent reviews.")
