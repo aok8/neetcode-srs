@@ -151,6 +151,14 @@ def load_cached(cache_path: Path) -> list[dict] | None:
     return blob["problems"]
 
 
+def load_secondary(path: Path) -> list[dict] | None:
+    """Load secondary.json — returns problems in frequency order (index 0 = most common), or None if missing."""
+    if not path.exists():
+        return None
+    blob = json.loads(path.read_text())
+    return blob.get("problems", [])
+
+
 def save_cache(cache_path: Path, problems: list[dict]) -> None:
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(

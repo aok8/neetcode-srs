@@ -20,6 +20,7 @@ def pick_today(
     today: date,
     daily_target: int = 1,
     shuffle: bool = False,
+    extra: bool = False,
 ) -> Pick:
     done = db.count_reviewed_on(conn, today)
     if done >= daily_target:
@@ -31,7 +32,13 @@ def pick_today(
         if due.last_reviewed != today:
             return Pick(card=due, kind="review", done_today=done, daily_target=daily_target)
 
-    new = db.pick_new_shuffle(conn) if shuffle else db.pick_new(conn)
+    if extra:
+        new = db.pick_new_extra(conn)
+    elif shuffle:
+        new = db.pick_new_shuffle(conn)
+    else:
+        new = db.pick_new(conn)
+
     if new is not None:
         return Pick(card=new, kind="new", done_today=done, daily_target=daily_target)
 

@@ -11,6 +11,7 @@ from neetcode_srs.srs import schedule
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DB_PATH = DATA_DIR / "state.db"
 CACHE_PATH = DATA_DIR / "neetcode250.json"
+SECONDARY_PATH = DATA_DIR / "secondary.json"
 CONFIG_PATH = DATA_DIR / "config.json"
 
 
@@ -62,6 +63,7 @@ def _parse_today(raw: str | None) -> date:
 
 def cmd_setup(args: argparse.Namespace) -> int:
     conn = db.connect(DB_PATH)
+
     cached = problems.load_cached(CACHE_PATH)
     if cached is None or args.refresh:
         print("Fetching NeetCode 250 from neetcode.io …")
@@ -71,8 +73,16 @@ def cmd_setup(args: argparse.Namespace) -> int:
     else:
         plist = cached
         print(f"Using cached problem list ({len(plist)} problems). Use --refresh to re-fetch.")
-    n = db.upsert_problems(conn, plist)
+    n = db.upsert_problems(conn, plist, source="neetcode250")
     print(f"Loaded {n} problems into the deck.")
+
+    secondary = problems.load_secondary(SECONDARY_PATH)
+    if secondary:
+        ns = db.upsert_problems(conn, secondary, source="secondary")
+        print(f"Loaded {ns} problems from secondary list (frequency-ordered).")
+    elif SECONDARY_PATH.exists():
+        print(f"secondary.json is empty — add problems to {SECONDARY_PATH} to use --extra mode.")
+
     return 0
 
 
@@ -106,9 +116,17 @@ def cmd_today(args: argparse.Namespace) -> int:
         cfg = config.set_key(CONFIG_PATH, "shuffle", True)
     elif getattr(args, "no_shuffle", False):
         cfg = config.set_key(CONFIG_PATH, "shuffle", False)
-    shuffle = cfg["shuffle"]
 
-    pick = selector.pick_today(conn, today, daily_target=target, shuffle=shuffle)
+    # Persist --extra / --no-extra if either flag was explicitly passed.
+    if getattr(args, "extra", False):
+        cfg = config.set_key(CONFIG_PATH, "extra", True)
+    elif getattr(args, "no_extra", False):
+        cfg = config.set_key(CONFIG_PATH, "extra", False)
+
+    shuffle = cfg["shuffle"]
+    extra = cfg["extra"]
+
+    pick = selector.pick_today(conn, today, daily_target=target, shuffle=shuffle, extra=extra)
     if pick.kind == "empty":
         print("Deck is empty. Run `neetcode setup` first.")
         return 1
@@ -119,7 +137,12 @@ def cmd_today(args: argparse.Namespace) -> int:
         return 0
     assert pick.card is not None
 
-    if shuffle:
+    if extra:
+        src_label = "extra mode" + (
+            f" · from secondary" if pick.card.source == "secondary" else " · from neetcode250"
+        )
+        print(f"  {DIM}{src_label}{RESET}")
+    elif shuffle:
         print(f"  {DIM}shuffle mode{RESET}")
     if target > 1:
         print(f"  {DIM}card {pick.done_today + 1} of {target} today{RESET}")
@@ -222,13 +245,13 @@ def cmd_config(args: argparse.Namespace) -> int:
         if coerced < 1:
             print("  daily_target must be >= 1")
             return 2
-    elif key == "shuffle":
+    elif key in ("shuffle", "extra"):
         if args.value.lower() in ("on", "true", "1", "yes"):
             coerced = True
         elif args.value.lower() in ("off", "false", "0", "no"):
             coerced = False
         else:
-            print(f"  shuffle must be on/off, got {args.value!r}")
+            print(f"  {key} must be on/off, got {args.value!r}")
             return 2
     try:
         updated = config.set_key(CONFIG_PATH, key, coerced)
@@ -243,7 +266,12 @@ def cmd_skip(args: argparse.Namespace) -> int:
     conn = db.connect(DB_PATH)
     today = _parse_today(args.today)
     cfg = config.load(CONFIG_PATH)
-    pick = selector.pick_today(conn, today, daily_target=cfg["daily_target"], shuffle=cfg["shuffle"])
+    pick = selector.pick_today(
+        conn, today,
+        daily_target=cfg["daily_target"],
+        shuffle=cfg["shuffle"],
+        extra=cfg["extra"],
+    )
     if pick.kind in ("empty", "quota_hit"):
         print("Nothing to skip.")
         return 0
@@ -273,6 +301,27 @@ def _add_shuffle_flags(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_extra_flags(parser: argparse.ArgumentParser) -> None:
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument(
+        "--extra",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable extra mode (saved to config). Draws from both neetcode250 and secondary.json, "
+            "weighting neetcode250 10%% more often. Within secondary, problems are weighted by "
+            "interview frequency (first entry in secondary.json = highest probability)."
+        ),
+    )
+    grp.add_argument(
+        "--no-extra",
+        action="store_true",
+        default=False,
+        dest="no_extra",
+        help="Disable extra mode (saved to config).",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     # Parent parser with the hidden --today flag, inherited by all subparsers
     # so it works in both `neetcode --today ...` and `neetcode today --today ...`.
@@ -285,6 +334,7 @@ def build_parser() -> argparse.ArgumentParser:
         parents=[common],
     )
     _add_shuffle_flags(p)
+    _add_extra_flags(p)
     sub = p.add_subparsers(dest="command")
 
     p_setup = sub.add_parser("setup", parents=[common],
@@ -297,6 +347,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_today = sub.add_parser("today", parents=[common], help="Show today's card (default).")
     _add_shuffle_flags(p_today)
+    _add_extra_flags(p_today)
     p_today.set_defaults(func=cmd_today)
 
     p_hist = sub.add_parser("history", parents=[common], help="Show recent reviews.")

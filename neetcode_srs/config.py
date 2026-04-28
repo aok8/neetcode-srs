@@ -6,6 +6,7 @@ from pathlib import Path
 DEFAULTS = {
     "daily_target": 1,
     "shuffle": False,
+    "extra": False,
 }
 
 
