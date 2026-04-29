@@ -1,6 +1,6 @@
 # neetcode-srs
 
-Daily spaced-repetition CLI over the [NeetCode 250](https://neetcode.io/practice?tab=neetcode250).
+Daily spaced-repetition CLI over the [NeetCode 250](https://neetcode.io/practice?tab=neetcode250) — with an optional frequency-weighted supplemental list for extra interview prep.
 One card a day, answer `y` or `n`, SM-2 scheduling decides when you see it again.
 New cards go Easy → Medium → Hard so muscle memory builds up gradually.
 
@@ -78,11 +78,14 @@ neetcode stats      # should show: 250 total · 250 new
 neetcode                   # show today's card, prompts y / n / e / skip
 neetcode --shuffle         # enable shuffle mode (saved); random problems, Easy/Medium weighted over Hard
 neetcode --no-shuffle      # revert to in-order mode (saved)
+neetcode --extra           # enable extra mode (saved); draws from NeetCode 250 + secondary list
+neetcode --no-extra        # disable extra mode (saved)
 neetcode stats             # deck progress
 neetcode history 20        # last 20 reviews
 neetcode skip              # postpone today's card one day
 neetcode dashboard         # open an HTML progress report (heatmap, streak, etc.)
-neetcode setup --refresh   # re-fetch the problem list if NeetCode updates it
+neetcode setup             # sync the problem list, prune stale cards
+neetcode setup --refresh   # re-fetch the NeetCode 250 list from neetcode.io before syncing
 ```
 
 The `dashboard` command generates a self-contained HTML file in your temp
@@ -96,6 +99,8 @@ and it tells you you're done. Want more per day?
 neetcode config daily 3      # now you can do 3 cards/day
 neetcode config shuffle on   # same as --shuffle, persisted
 neetcode config shuffle off  # same as --no-shuffle, persisted
+neetcode config extra on     # same as --extra, persisted
+neetcode config extra off    # same as --no-extra, persisted
 neetcode config              # show current config
 ```
 
@@ -106,6 +111,27 @@ Shuffle mode picks new cards randomly instead of in order. Difficulty is
 weighted — **Easy 35% · Medium 50% · Hard 15%** — so hard problems surface
 regularly but don't dominate. Answering `n` on any card also prints the
 topic(s) it belongs to so you know exactly what to review.
+
+## Extra mode
+
+`--extra` activates a combined pool that draws from both the NeetCode 250 list
+and a supplemental `data/secondary.json` list sorted by interview frequency.
+
+**Selection pipeline:**
+
+1. **Source** — NeetCode 250 is chosen ~52% of the time (weight ×1.1), secondary ~48% (weight ×1.0).
+2. **Difficulty** — Easy 35% · Medium 50% · Hard 15% within the chosen source.
+3. **Card** — NeetCode 250 cards in the chosen difficulty bucket are drawn uniformly at random.
+   Secondary cards are **frequency-weighted**: the problem at index 0 (most common in interviews)
+   has the highest draw probability; the last entry has weight 1. Weight decays linearly by position.
+
+The idea is that you're covering NeetCode breadth while being biased toward the interview problems
+that actually show up most often in the wild.
+
+`secondary.json` is a plain JSON file — edit it to add or reorder problems. The format mirrors
+`neetcode250.json`: an array of `{id, title, difficulty, topics, leetcode_url}` objects where index 0
+is the most frequent interview problem. After editing, run `neetcode setup` to sync the changes into
+the deck (stale unseen cards are pruned automatically).
 
 ## Scheduling rules
 
@@ -121,7 +147,7 @@ Three grades, SM-2 under the hood:
   - Streak resets, card pushed out **at least 3 days** — not tomorrow. The brain needs time to forget and re-encounter cleanly.
   - Ease drops by 0.2 (floor 1.3).
 
-By default, new cards are introduced in order **Easy (60) → Medium (155) → Hard (35)**
+By default, new cards are introduced in order **Easy → Medium → Hard**
 within the NeetCode list ordering. With `--shuffle`, the order is randomized using
 difficulty weights instead. Due reviews always beat new cards when both are available.
 
@@ -129,7 +155,8 @@ difficulty weights instead. Due reviews always beat new cards when both are avai
 
 Everything lives in `data/`:
 
-- `neetcode250.json` — cached problem list (committed).
+- `neetcode250.json` — cached NeetCode 250 problem list (committed).
+- `secondary.json` — supplemental frequency-ordered problem list (committed). Edit this to add problems; index 0 = most common interview problem.
 - `state.db` — SQLite with your progress and audit log (gitignored).
 
 Back up `state.db` if you care about your streak.

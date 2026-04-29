@@ -96,6 +96,28 @@ def _row_to_card(row: sqlite3.Row) -> Card:
     )
 
 
+def sync_problems(
+    conn: sqlite3.Connection, problems: list[dict], source: str = "neetcode250"
+) -> tuple[int, int]:
+    """Upsert problems and remove unseen stale cards from that source.
+
+    Returns (upserted_count, removed_count). Cards that have already been
+    reviewed (next_due IS NOT NULL) are never deleted even if they've been
+    removed from the list, so SRS progress is always preserved.
+    """
+    upsert_problems(conn, problems, source)
+    keep_ids = {p["id"] for p in problems}
+    stale = conn.execute(
+        "SELECT id FROM cards WHERE source = ? AND next_due IS NULL",
+        (source,),
+    ).fetchall()
+    to_delete = [r["id"] for r in stale if r["id"] not in keep_ids]
+    if to_delete:
+        with conn:
+            conn.executemany("DELETE FROM cards WHERE id = ?", [(i,) for i in to_delete])
+    return len(problems), len(to_delete)
+
+
 def upsert_problems(
     conn: sqlite3.Connection, problems: list[dict], source: str = "neetcode250"
 ) -> int:

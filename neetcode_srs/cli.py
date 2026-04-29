@@ -73,13 +73,19 @@ def cmd_setup(args: argparse.Namespace) -> int:
     else:
         plist = cached
         print(f"Using cached problem list ({len(plist)} problems). Use --refresh to re-fetch.")
-    n = db.upsert_problems(conn, plist, source="neetcode250")
-    print(f"Loaded {n} problems into the deck.")
+    n, removed = db.sync_problems(conn, plist, source="neetcode250")
+    msg = f"Synced {n} NeetCode 250 problems."
+    if removed:
+        msg += f" Removed {removed} stale unseen cards."
+    print(msg)
 
     secondary = problems.load_secondary(SECONDARY_PATH)
     if secondary:
-        ns = db.upsert_problems(conn, secondary, source="secondary")
-        print(f"Loaded {ns} problems from secondary list (frequency-ordered).")
+        ns, sremoved = db.sync_problems(conn, secondary, source="secondary")
+        msg = f"Synced {ns} secondary problems (frequency-ordered)."
+        if sremoved:
+            msg += f" Removed {sremoved} stale unseen cards."
+        print(msg)
     elif SECONDARY_PATH.exists():
         print(f"secondary.json is empty — add problems to {SECONDARY_PATH} to use --extra mode.")
 
