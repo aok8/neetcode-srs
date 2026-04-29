@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 CREATE INDEX IF NOT EXISTS idx_cards_next_due ON cards(next_due);
 CREATE INDEX IF NOT EXISTS idx_cards_order ON cards(order_idx);
-CREATE INDEX IF NOT EXISTS idx_cards_source ON cards(source);
 """
 
 
@@ -69,11 +68,14 @@ def connect(db_path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     # Migration: add source column for existing DBs created before --extra support.
+    # The index on source must come AFTER the column exists, so it can't live in SCHEMA.
     try:
         conn.execute("ALTER TABLE cards ADD COLUMN source TEXT NOT NULL DEFAULT 'neetcode250'")
         conn.commit()
     except sqlite3.OperationalError:
         pass  # Column already exists
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cards_source ON cards(source)")
+    conn.commit()
     return conn
 
 
