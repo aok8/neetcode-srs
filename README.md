@@ -119,13 +119,13 @@ and a supplemental `data/secondary.json` list sorted by interview frequency.
 
 **Selection pipeline:**
 
-1. **Source** — NeetCode 250 is chosen ~52% of the time (weight ×1.1), secondary ~48% (weight ×1.0).
-2. **Difficulty** — Easy 35% · Medium 50% · Hard 15% within the chosen source.
-3. **Card** — NeetCode 250 cards in the chosen difficulty bucket are drawn uniformly at random.
-   Secondary cards are **frequency-weighted**: the problem at index 0 (most common in interviews)
-   has the highest draw probability; the last entry has weight 1. Weight decays linearly by position.
+1. **Source** — NeetCode 250 is chosen 60% of the time, secondary 40%.
+2. **Difficulty** — Easy 35% · Medium 50% · Hard 15%, applied independently within each source.
+3. **Card within source:**
+   - *NeetCode 250* — uniform random within the chosen difficulty bucket. No frequency decay; the list is not ordered by frequency.
+   - *Secondary* — **exponential frequency decay** by rank. The problem at rank 0 is drawn ~311× more often than the problem at rank 415. Every 50 ranks, probability halves: rank 50 is 2× less likely than rank 0, rank 100 is 4× less, rank 200 is 16× less, and so on. Problems near the bottom of the list are genuinely rare regardless of how many cards end up in the chosen difficulty bucket.
 
-The idea is that you're covering NeetCode breadth while being biased toward the interview problems
+The idea is that you're covering NeetCode breadth while being strongly biased toward the interview problems
 that actually show up most often in the wild.
 
 `secondary.json` is a plain JSON file — edit it to add or reorder problems. The format mirrors
