@@ -237,8 +237,14 @@ def pick_new(conn: sqlite3.Connection) -> Card | None:
 
 _SHUFFLE_BUCKET_WEIGHTS = {"Easy": 35, "Medium": 50, "Hard": 15}
 
-# neetcode250 is drawn 10% more often than secondary when both pools have cards.
-_SOURCE_WEIGHTS = {"neetcode250": 1.1, "secondary": 1.0}
+# 60 / 40 source split: neetcode250 drawn 3 parts, secondary 2 parts.
+_SOURCE_WEIGHTS = {"neetcode250": 3, "secondary": 2}
+
+# Exponential decay half-life for secondary frequency weighting.
+# At rank 50 a problem is half as likely as rank 0; at rank 100 it's 1/4; at
+# rank 200 it's 1/16; at rank 415 it's ~1/250. Problems near the bottom of the
+# frequency list are genuinely rare regardless of difficulty-bucket size.
+_SECONDARY_FREQ_HALFLIFE = 50
 
 
 def pick_new_shuffle(conn: sqlite3.Connection) -> Card | None:
@@ -267,10 +273,11 @@ def pick_new_shuffle(conn: sqlite3.Connection) -> Card | None:
 def pick_new_extra(conn: sqlite3.Connection) -> Card | None:
     """Combined-pool selection for --extra mode.
 
-    Source selection: neetcode250 (weight 1.1) vs secondary (weight 1.0).
+    Source selection: neetcode250 60% / secondary 40% (weights 3:2).
     Difficulty selection: Easy 35% / Medium 50% / Hard 15% within the chosen source.
-    Secondary cards are frequency-weighted: order_idx 0 (most common interview problem)
-    gets the highest draw probability; the last entry gets weight 1.
+    Secondary cards use exponential frequency decay keyed on order_idx so that
+    rank-0 problems are drawn ~250× more often than rank-415 problems, regardless
+    of how many cards happen to be in the chosen difficulty bucket.
     neetcode250 cards within a difficulty bucket are drawn uniformly at random.
     """
     nc250: dict[str, int] = {}
@@ -318,12 +325,9 @@ def pick_new_extra(conn: sqlite3.Connection) -> Card | None:
         ).fetchone()
         return _row_to_card(row) if row else None
 
-    # Secondary: weight by frequency rank using order_idx.
-    # total_secondary used as the ceiling so weight = total - order_idx >= 1.
-    total_secondary = conn.execute(
-        "SELECT COUNT(*) FROM cards WHERE source = 'secondary'"
-    ).fetchone()[0]
-
+    # Secondary: exponential frequency decay by order_idx.
+    # weight = 2^(-order_idx / HALFLIFE) so rank-0 problems dominate and
+    # bottom-ranked problems are extremely rare no matter the bucket size.
     rows = conn.execute(
         "SELECT * FROM cards WHERE next_due IS NULL AND difficulty = ? AND source = 'secondary'"
         " ORDER BY order_idx ASC",
@@ -333,7 +337,7 @@ def pick_new_extra(conn: sqlite3.Connection) -> Card | None:
         return None
 
     cards = [_row_to_card(r) for r in rows]
-    freq_weights = [max(1, total_secondary - c.order_idx) for c in cards]
+    freq_weights = [2.0 ** (-c.order_idx / _SECONDARY_FREQ_HALFLIFE) for c in cards]
     return random.choices(cards, weights=freq_weights, k=1)[0]
 
 
