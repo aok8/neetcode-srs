@@ -86,6 +86,9 @@ neetcode skip              # postpone today's card one day
 neetcode dashboard         # open an HTML progress report (heatmap, streak, etc.)
 neetcode setup             # sync the problem list, prune stale cards
 neetcode setup --refresh   # re-fetch the NeetCode 250 list from neetcode.io before syncing
+neetcode reset             # reset ALL progress back to unseen (confirmation required)
+neetcode reset secondary   # reset only the secondary/extra list
+neetcode reset neetcode250 # reset only the NeetCode 250 list
 ```
 
 The `dashboard` command generates a self-contained HTML file in your temp
@@ -111,6 +114,23 @@ Shuffle mode picks new cards randomly instead of in order. Difficulty is
 weighted — **Easy 35% · Medium 50% · Hard 15%** — so hard problems surface
 regularly but don't dominate. Answering `n` on any card also prints the
 topic(s) it belongs to so you know exactly what to review.
+
+## Switching modes / starting over
+
+Changing `--extra` or `--shuffle` takes effect immediately on the next `neetcode` run -- no setup needed.
+However, cards already scheduled (due reviews from a previous mode) keep surfacing until reviewed,
+because SRS progress is always honoured regardless of the current mode.
+
+To get a truly clean slate when switching modes, use `reset`:
+
+```bash
+neetcode reset secondary    # clear secondary cards before turning --extra off
+neetcode reset neetcode250  # clear NeetCode 250 progress before a fresh start
+neetcode reset              # wipe everything and start completely over
+```
+
+Each variant shows a breakdown of cards and review records that will be deleted,
+and requires you to type `yes` before anything changes.
 
 ## Extra mode
 
