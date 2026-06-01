@@ -217,10 +217,12 @@ def pick_due(conn: sqlite3.Connection, today: date) -> Card | None:
 
 def pick_new(conn: sqlite3.Connection) -> Card | None:
     # Easy → Medium → Hard, then by NeetCode order within a tier.
+    # Only introduces neetcode250 cards; secondary cards are only ever
+    # introduced via pick_new_extra when --extra is active.
     row = conn.execute(
         """
         SELECT * FROM cards
-        WHERE next_due IS NULL
+        WHERE next_due IS NULL AND source = 'neetcode250'
         ORDER BY
             CASE difficulty
                 WHEN 'Easy' THEN 0
@@ -248,11 +250,16 @@ _SECONDARY_FREQ_HALFLIFE = 50
 
 
 def pick_new_shuffle(conn: sqlite3.Connection) -> Card | None:
-    """Pick a random unseen card with difficulty-bucket weighting (Easy 35%, Medium 50%, Hard 15%)."""
+    """Pick a random unseen neetcode250 card weighted Easy 35% / Medium 50% / Hard 15%.
+
+    Only draws from neetcode250 cards; secondary cards are only ever introduced
+    via pick_new_extra when --extra is active.
+    """
     counts = {}
     for diff in ("Easy", "Medium", "Hard"):
         row = conn.execute(
-            "SELECT COUNT(*) FROM cards WHERE next_due IS NULL AND difficulty = ?", (diff,)
+            "SELECT COUNT(*) FROM cards WHERE next_due IS NULL AND difficulty = ? AND source = 'neetcode250'",
+            (diff,),
         ).fetchone()
         counts[diff] = row[0]
 
@@ -264,7 +271,8 @@ def pick_new_shuffle(conn: sqlite3.Connection) -> Card | None:
     chosen = random.choices(diffs, weights=weights, k=1)[0]
 
     row = conn.execute(
-        "SELECT * FROM cards WHERE next_due IS NULL AND difficulty = ? ORDER BY RANDOM() LIMIT 1",
+        "SELECT * FROM cards WHERE next_due IS NULL AND difficulty = ? AND source = 'neetcode250'"
+        " ORDER BY RANDOM() LIMIT 1",
         (chosen,),
     ).fetchone()
     return _row_to_card(row) if row else None
