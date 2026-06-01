@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import random
@@ -191,7 +191,7 @@ def reviewed_today(conn: sqlite3.Connection, today: date) -> Card | None:
 
 
 def count_reviewed_on(conn: sqlite3.Connection, day: date) -> int:
-    """Count distinct cards answered (y/n/e — not skip) on a given day."""
+    """Count distinct cards answered (y/n/e â€” not skip) on a given day."""
     row = conn.execute(
         """
         SELECT COUNT(DISTINCT card_id) FROM reviews
@@ -216,7 +216,7 @@ def pick_due(conn: sqlite3.Connection, today: date) -> Card | None:
 
 
 def pick_new(conn: sqlite3.Connection) -> Card | None:
-    # Easy → Medium → Hard, then by NeetCode order within a tier.
+    # Easy â†’ Medium â†’ Hard, then by NeetCode order within a tier.
     # Only introduces neetcode250 cards; secondary cards are only ever
     # introduced via pick_new_extra when --extra is active.
     row = conn.execute(
@@ -284,7 +284,7 @@ def pick_new_extra(conn: sqlite3.Connection) -> Card | None:
     Source selection: neetcode250 60% / secondary 40% (weights 3:2).
     Difficulty selection: Easy 35% / Medium 50% / Hard 15% within the chosen source.
     Secondary cards use exponential frequency decay keyed on order_idx so that
-    rank-0 problems are drawn ~250× more often than rank-415 problems, regardless
+    rank-0 problems are drawn ~250Ã— more often than rank-415 problems, regardless
     of how many cards happen to be in the chosen difficulty bucket.
     neetcode250 cards within a difficulty bucket are drawn uniformly at random.
     """
@@ -414,6 +414,52 @@ def postpone(conn: sqlite3.Connection, card: Card, next_due: date) -> None:
             ),
         )
 
+
+
+def reset_progress(
+    conn: sqlite3.Connection, source: str | None = None
+) -> tuple[int, int]:
+    """Reset card progress to unseen and delete review history.
+
+    If source is given ('secondary' or 'neetcode250') only that source is
+    affected.  Otherwise every card in the deck is reset.
+
+    Returns (cards_reset, reviews_deleted).
+    """
+    with conn:
+        if source is not None:
+            card_ids = [
+                r["id"]
+                for r in conn.execute(
+                    "SELECT id FROM cards WHERE source = ?", (source,)
+                ).fetchall()
+            ]
+        else:
+            card_ids = [
+                r["id"] for r in conn.execute("SELECT id FROM cards").fetchall()
+            ]
+
+        if not card_ids:
+            return 0, 0
+
+        placeholders = ",".join("?" * len(card_ids))
+        reviews_deleted = conn.execute(
+            f"SELECT COUNT(*) FROM reviews WHERE card_id IN ({placeholders})",
+            card_ids,
+        ).fetchone()[0]
+
+        conn.execute(
+            f"UPDATE cards SET ease = {EASE_START}, interval_days = 0, reps = 0,"
+            f" next_due = NULL, last_reviewed = NULL"
+            f" WHERE id IN ({placeholders})",
+            card_ids,
+        )
+        conn.execute(
+            f"DELETE FROM reviews WHERE card_id IN ({placeholders})",
+            card_ids,
+        )
+
+    return len(card_ids), reviews_deleted
 
 def stats(conn: sqlite3.Connection, today: date) -> dict:
     total = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
