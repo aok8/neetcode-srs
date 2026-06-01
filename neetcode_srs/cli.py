@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import sys
@@ -49,7 +49,7 @@ def _print_card(card: db.Card, kind: str) -> None:
     if kind == "review":
         streak = card.reps
         prior = card.interval_days
-        print(f"  {DIM}streak: {streak} Â· last interval: {prior}d Â· ease: {card.ease:.2f}{RESET}")
+        print(f"  {DIM}streak: {streak} · last interval: {prior}d · ease: {card.ease:.2f}{RESET}")
     print()
 
 
@@ -66,10 +66,10 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
     cached = problems.load_cached(CACHE_PATH)
     if cached is None or args.refresh:
-        print("Fetching NeetCode 250 from neetcode.io â€¦")
+        print("Fetching NeetCode 250 from neetcode.io …")
         plist = problems.fetch_neetcode250()
         problems.save_cache(CACHE_PATH, plist)
-        print(f"Cached {len(plist)} problems â†’ {CACHE_PATH}")
+        print(f"Cached {len(plist)} problems → {CACHE_PATH}")
     else:
         plist = cached
         print(f"Using cached problem list ({len(plist)} problems). Use --refresh to re-fetch.")
@@ -87,7 +87,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
             msg += f" Removed {sremoved} stale unseen cards."
         print(msg)
     elif SECONDARY_PATH.exists():
-        print(f"secondary.json is empty â€” add problems to {SECONDARY_PATH} to use --extra mode.")
+        print(f"secondary.json is empty — add problems to {SECONDARY_PATH} to use --extra mode.")
 
     return 0
 
@@ -100,8 +100,8 @@ def cmd_stats(args: argparse.Namespace) -> int:
         print("Deck is empty. Run `neetcode setup` first.")
         return 1
     print()
-    print(f"  {_color('Deck', BOLD)}: {s['total']} total  Â·  {s['new']} new  Â·  "
-          f"{s['learning']} learning  Â·  {s['mature']} mature")
+    print(f"  {_color('Deck', BOLD)}: {s['total']} total  ·  {s['new']} new  ·  "
+          f"{s['learning']} learning  ·  {s['mature']} mature")
     print(f"  {_color('Due today', BOLD)}: {s['due_today']}")
     print(f"  {_color('By difficulty', BOLD)}:")
     for d, counts in s["by_difficulty"].items():
@@ -145,7 +145,7 @@ def cmd_today(args: argparse.Namespace) -> int:
 
     if extra:
         src_label = "extra mode" + (
-            f" Â· from secondary" if pick.card.source == "secondary" else " Â· from neetcode250"
+            f" · from secondary" if pick.card.source == "secondary" else " · from neetcode250"
         )
         print(f"  {DIM}{src_label}{RESET}")
     elif shuffle:
@@ -153,7 +153,7 @@ def cmd_today(args: argparse.Namespace) -> int:
     if target > 1:
         print(f"  {DIM}card {pick.done_today + 1} of {target} today{RESET}")
     _print_card(pick.card, pick.kind)
-    print(f"  {DIM}y = solved Â· n = couldn't solve Â· e = trivially easy Â· skip{RESET}")
+    print(f"  {DIM}y = solved · n = couldn't solve · e = trivially easy · skip{RESET}")
     prompt = f"  {_color('Answer', BOLD)} [y/n/e/skip] > "
     try:
         answer = input(prompt).strip().lower()
@@ -177,9 +177,9 @@ def cmd_today(args: argparse.Namespace) -> int:
     color = {"y": GREEN, "n": RED, "e": CYAN}[answer]
     days = result.state.interval_days
     print()
-    print(f"  {_color(verb, color)} â€” next review in {days} day{'s' if days != 1 else ''} "
+    print(f"  {_color(verb, color)} — next review in {days} day{'s' if days != 1 else ''} "
           f"({result.next_due.isoformat()}).")
-    print(f"  {DIM}ease {pick.card.ease:.2f} â†’ {result.state.ease:.2f}  Â·  "
+    print(f"  {DIM}ease {pick.card.ease:.2f} → {result.state.ease:.2f}  ·  "
           f"streak {result.state.reps}{RESET}")
     if answer == "n" and pick.card.topics:
         topics_str = ", ".join(pick.card.topics)
@@ -197,15 +197,15 @@ def cmd_history(args: argparse.Namespace) -> int:
     print()
     for r in rows:
         icon = {
-            "y": _color("âœ“", GREEN),
-            "n": _color("âœ—", RED),
-            "e": _color("â˜…", CYAN),
-            "skip": _color("â‹¯", DIM),
+            "y": _color("✓", GREEN),
+            "n": _color("✗", RED),
+            "e": _color("★", CYAN),
+            "skip": _color("⋯", DIM),
         }[r["outcome"]]
         diff = _color(r["difficulty"], DIFFICULTY_COLOR.get(r["difficulty"], ""))
         when = r["reviewed_at"][:16].replace("T", " ")
         delta = (
-            f"interval {r['interval_before']}d â†’ {r['interval_after']}d"
+            f"interval {r['interval_before']}d → {r['interval_after']}d"
             if r["outcome"] != "skip"
             else "postponed"
         )
@@ -290,48 +290,48 @@ def cmd_skip(args: argparse.Namespace) -> int:
 
 def cmd_reset(args: argparse.Namespace) -> int:
     conn = db.connect(DB_PATH)
-    source: str | None = getattr(args, "source", None)
+    source: str | None = getattr(args, 'source', None)
 
     if source is not None:
         total_cards = conn.execute(
-            "SELECT COUNT(*) FROM cards WHERE source = ?", (source,)
+            'SELECT COUNT(*) FROM cards WHERE source = ?', (source,)
         ).fetchone()[0]
         reviewed = conn.execute(
-            "SELECT COUNT(*) FROM cards WHERE source = ? AND next_due IS NOT NULL",
+            'SELECT COUNT(*) FROM cards WHERE source = ? AND next_due IS NOT NULL',
             (source,),
         ).fetchone()[0]
-        scope = f"{source} cards"
+        scope = f'{source} cards'
     else:
-        total_cards = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
+        total_cards = conn.execute('SELECT COUNT(*) FROM cards').fetchone()[0]
         reviewed = conn.execute(
-            "SELECT COUNT(*) FROM cards WHERE next_due IS NOT NULL"
+            'SELECT COUNT(*) FROM cards WHERE next_due IS NOT NULL'
         ).fetchone()[0]
-        scope = "ALL cards"
+        scope = 'ALL cards'
 
     if total_cards == 0:
-        print(f"  No {scope} found in the deck.")
+        print(f'  No {scope} found in the deck.')
         return 0
 
     print()
-    print(f"  {_color('Warning', RED)} This will reset {scope}:")
-    print(f"    {total_cards} cards total  ({reviewed} with SRS progress, "
-          f"{total_cards - reviewed} unseen)")
-    print(f"    All review history for these cards will be permanently deleted.")
+    print(f'  {_color("Warning", RED)} This will reset {scope}:')
+    print(f'    {total_cards} cards total  ({reviewed} with SRS progress, '
+          f'{total_cards - reviewed} unseen)')
+    print(f'    All review history for these cards will be permanently deleted.')
     print()
     try:
-        answer = input(f"  Type {_color('yes', BOLD)} to confirm: ").strip().lower()
+        answer = input(f'  Type {_color("yes", BOLD)} to confirm: ').strip().lower()
     except (EOFError, KeyboardInterrupt):
         print()
         return 130
 
-    if answer != "yes":
-        print("  Aborted — nothing changed.")
+    if answer != 'yes':
+        print('  Aborted — nothing changed.')
         return 0
 
     cards_reset, reviews_deleted = db.reset_progress(conn, source)
     print()
-    print(f"  {_color('Reset complete', GREEN)}: {cards_reset} cards returned to unseen, "
-          f"{reviews_deleted} review records deleted.")
+    print(f'  {_color("Reset complete", GREEN)}: {cards_reset} cards returned to unseen, '
+          f'{reviews_deleted} review records deleted.')
     print()
     return 0
 
@@ -410,17 +410,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_skip = sub.add_parser("skip", parents=[common], help="Postpone today's card by one day.")
     p_skip.set_defaults(func=cmd_skip)
-
     p_reset = sub.add_parser(
-        "reset", parents=[common],
-        help="Reset card progress back to unseen. Prompts for confirmation.",
+        'reset', parents=[common],
+        help='Reset card progress back to unseen. Prompts for confirmation.',
     )
     p_reset.add_argument(
-        "source", nargs="?", choices=["neetcode250", "secondary"],
+        'source', nargs='?', choices=['neetcode250', 'secondary'],
         help="Which source to reset (default: all cards). "
              "'secondary' clears only the extra list; 'neetcode250' clears only the main list.",
     )
     p_reset.set_defaults(func=cmd_reset)
+
 
     p_dash = sub.add_parser("dashboard", parents=[common],
                             help="Open a local HTML progress dashboard in your browser.")
