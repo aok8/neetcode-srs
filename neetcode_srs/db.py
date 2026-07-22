@@ -61,9 +61,9 @@ class Card:
         return CardState(ease=self.ease, interval_days=self.interval_days, reps=self.reps)
 
 
-def connect(db_path: Path) -> sqlite3.Connection:
+def connect(db_path: Path, check_same_thread: bool = True) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)

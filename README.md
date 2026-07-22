@@ -76,6 +76,7 @@ neetcode stats      # should show: 250 total · 250 new
 
 ```bash
 neetcode                   # show today's card, prompts y / n / e / skip
+neetcode --ui              # open an interactive browser UI instead of the terminal prompt
 neetcode --shuffle         # enable shuffle mode (saved); random problems, Easy/Medium weighted over Hard
 neetcode --no-shuffle      # revert to in-order mode (saved)
 neetcode --extra           # enable extra mode (saved); draws from NeetCode 250 + secondary list

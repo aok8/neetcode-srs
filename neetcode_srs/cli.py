@@ -129,6 +129,11 @@ def cmd_today(args: argparse.Namespace) -> int:
     elif getattr(args, "no_extra", False):
         cfg = config.set_key(CONFIG_PATH, "extra", False)
 
+    if getattr(args, "ui", False):
+        from neetcode_srs import ui_server as _ui
+        _ui.start_ui(DB_PATH, cfg)
+        return 0
+
     shuffle = cfg["shuffle"]
     extra = cfg["extra"]
 
@@ -355,6 +360,15 @@ def _add_shuffle_flags(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_ui_flag(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--ui",
+        action="store_true",
+        default=False,
+        help="Open an interactive browser UI instead of the terminal prompt.",
+    )
+
+
 def _add_extra_flags(parser: argparse.ArgumentParser) -> None:
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument(
@@ -389,6 +403,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_shuffle_flags(p)
     _add_extra_flags(p)
+    _add_ui_flag(p)
     sub = p.add_subparsers(dest="command")
 
     p_setup = sub.add_parser("setup", parents=[common],
@@ -402,6 +417,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_today = sub.add_parser("today", parents=[common], help="Show today's card (default).")
     _add_shuffle_flags(p_today)
     _add_extra_flags(p_today)
+    _add_ui_flag(p_today)
     p_today.set_defaults(func=cmd_today)
 
     p_hist = sub.add_parser("history", parents=[common], help="Show recent reviews.")
